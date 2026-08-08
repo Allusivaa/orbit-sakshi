@@ -430,7 +430,8 @@ viewer.scene.postRender.addEventListener(()=>{
   }
 });
 
-function inBas(o){ return o.apogee_km!=null && o.perigee_km!=null && o.apogee_km>=400 && o.perigee_km<=450; }
+var BAS_BAND = [400,450]; /* default; overwritten from snap.bas_band_km at load — the data owns this constant */
+function inBas(o){ return o.apogee_km!=null && o.perigee_km!=null && o.apogee_km>=BAS_BAND[0] && o.perigee_km<=BAS_BAND[1]; }
 
 /* fade/scale machinery, tiered per class: fully opaque to 80% of far, gone at far */
 function applyLabelPolicy(){
@@ -463,7 +464,9 @@ fetch("data/india_objects.json").then(r=>r.json()).then(snap=>{
   document.getElementById("nPay").textContent = counts.PAY;
   document.getElementById("nRb").textContent  = counts["R/B"];
   document.getElementById("nDeb").textContent = counts.DEB;
-  const deep = snap.untracked.filter(u=>/Chandrayaan|MOM|Aditya/i.test(u.name)).length;
+  const DEEP_SPACE_NORAD = [33405, 39370, 44441, 57754, 57770]; /* Chandrayaan-1, Mars Orbiter Mission, Chandrayaan-2, Aditya-L1, Chandrayaan-3 PM — identities per receipt #0001; keyed on immutable NORAD id, never on upstream-controlled catalog name */
+  if (Array.isArray(snap.bas_band_km) && snap.bas_band_km.length===2) { BAS_BAND = snap.bas_band_km; }
+  const deep = snap.untracked.filter(u=>DEEP_SPACE_NORAD.includes(u.norad)).length;
   document.getElementById("untrackedBlurb").innerHTML =
     `${snap.untracked.length} of ${snap.coverage.on_orbit_indian_objects} on-orbit Indian-owned catalog entries have no publicly verifiable orbit data. ` +
     `${deep} are India's deep-space flagships. India publishes no public ephemeris for them — the proof layer doesn't exist yet. <b>That gap is why Velotrax exists.</b>`;
@@ -512,7 +515,7 @@ fetch("data/india_objects.json").then(r=>r.json()).then(snap=>{
   applyLabelPolicy();   // match initial checkbox state ("Label everything" default)
 
   document.getElementById("receipt").innerHTML =
-    `<b style="color:var(--ink)">Receipt chain</b> · genesis + 6 receipts, verified<br>` +
+    `<b style="color:var(--ink)">Receipt chain</b> · 13 receipts, chain intact (#0000–#0012) — first seven shown<br>` +
     `snapshot sha256 <code>212afa67…</code> · AAGAMAN A/B/C now tracked via OMM (Alpha-5)<br>` +
     `<code>#0000 1f054806…</code> genesis → <code>#0001 81ce44b1…</code> snapshot → <code>#0002 c5e6b29d…</code> correction → <code>#0003 2ec4d118…</code> rebuild kit → <code>#0004 75f7343f…</code> correction → <code>#0005 65e83ad0…</code> known-gap declared → <code>#0006 1f208b42…</code> gap closed, same day<br>` +
     `<a href="rebuild/REBUILD.md" target="_blank" rel="noopener">Rebuild any archived day yourself</a> — ` +

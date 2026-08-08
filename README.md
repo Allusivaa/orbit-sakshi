@@ -38,19 +38,25 @@ at the snapshot timestamp).
 | `archive/` | The self-contained evidence root: receipt chain, daily CelesTrak fetches exactly as pulled, and the full pipeline including the generalised OMM lane for NORAD ≥ 100000 objects. |
 | `MANIFEST.json` | sha256 of every file in the tree. |
 
-## Sealed release — v1.0.2
+## Sealed release — v1.0.3 (current)
 
 | Artifact | sha256 |
 |---|---|
-| `index.html` | `482a3b52164bde505792868e60cccf0d0fbf939bcb64d35e43fd8ee537311bb4` |
-| `orbit_sakshi_v1.0.2.zip` (release asset) | `d61d1013f235f1a36dc39f3a1cf4d390881b5073e4f682ac2f45d64f2c128559` |
+| `index.html` | `f0bb29ca890097f9545ef58c42a1ade885856fc1012c24ede36005287f7b8ee5` |
+| `orbit_sakshi_v1.0.3.zip` (release asset) | `9aa0befdfc61f53d77fe7964392e1c2be564ba105f1bf2ebbe931239a2569c00` |
+
+Superseded — kept because the chain refers to it:
+
+| v1.0.2 `index.html` | `482a3b52164bde505792868e60cccf0d0fbf939bcb64d35e43fd8ee537311bb4` |
+|---|---|
+| v1.0.2 `orbit_sakshi_v1.0.2.zip` | `d61d1013f235f1a36dc39f3a1cf4d390881b5073e4f682ac2f45d64f2c128559` |
 
 The release zip is the deployable folder exactly as it sits on the web server.
 Verify after download:
 
 ```bash
-sha256sum orbit_sakshi_v1.0.2.zip        # must match the table above
-unzip -d sakshi orbit_sakshi_v1.0.2.zip
+sha256sum orbit_sakshi_v1.0.3.zip        # must match the table above
+unzip -d sakshi orbit_sakshi_v1.0.3.zip
 cd sakshi/archive && node rebuild/rebuild.mjs   # VERDICT: PASS, exit 0
 ```
 
@@ -96,15 +102,20 @@ cd sakshi/archive && node rebuild/rebuild.mjs   # VERDICT: PASS, exit 0
   page against the chain; the chain was right and the page was wrong. The
   sealed v1.0.2 tree is **not** edited — it is a true record of what shipped,
   defect included. The fix (match on NORAD id, never on an upstream-controlled
-  name) lands in v1.0.3 with a correction receipt.
+  name) shipped the same night as **v1.0.3**, recorded as correction receipt
+  **#0012** (`cd513f6e…168be4`). The declaration above is left standing: it was
+  published before the fix existed, and deleting it would be the exact silent
+  edit this project refuses to make.
 - Two latent defects of the same family, recorded at the same audit: the
   receipt panel carries the hardcoded string "genesis + 6 receipts" while this
   chain holds 12, and `inBas()` hardcodes the 400–450 km band that
   `bas_band_km` already owns in the data. Neither renders a wrong number
-  today. Both are fixed in the same forward cut.
+  today. Both closed in v1.0.3 by the same receipt #0012: `inBas()` now reads
+  `snap.bas_band_km`, and the panel states the chain it ships with.
 - Version history: v1.0 (`546e58d9…f0e83` zip) → v1.0.1 (`7679d2a8…da7898`
   zip, superseded pre-launch by a mobile label-timing bug, recorded on-chain)
-  → v1.0.2 (this tree).
+  → v1.0.2 (`d61d1013…128559` zip, superseded the same night by the
+  deep-space-count defect above) → **v1.0.3** (this tree, 13 receipts).
 
 ## Author
 
