@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit Sakshi — India's orbital sky, with receipts</title>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#141210; --panel:#1e1a16; --ink:#e8e0d4; --dim:#9a8f80;
+          --amber:#f5a623; --rust:#c46a4a; --gray:#7d7468; --teal:#3fd0c9; --line:#3a332b; }
+  html,body,#cesiumContainer { margin:0; height:100%; background:var(--bg); font-family:Georgia,'Times New Roman',serif; color:var(--ink); overflow:hidden; }
+  .panel { position:absolute; background:rgba(30,26,22,.97); border:1px solid var(--line); border-radius:8px; padding:14px 18px; z-index:20; backdrop-filter:blur(4px); box-shadow:0 2px 12px rgba(0,0,0,.45); }
+
+  #leftCol { position:absolute; top:14px; left:14px; z-index:30; display:flex; flex-direction:column; gap:10px; max-width:330px; }
+  #leftCol .panel { position:static; }
+  #title { max-width:330px; }
+  #title h1 { margin:0 0 4px; font-size:20px; font-weight:normal; letter-spacing:.5px; }
+  #title h1 em { color:var(--amber); font-style:normal; }
+  #title p { margin:4px 0; font-size:12px; color:var(--dim); line-height:1.5; }
+  #title p b { color:var(--ink); font-weight:normal; }
+  #provToggle { display:none; margin-top:6px; font-size:11px; }
+  #stats { margin-top:8px; padding-top:8px; border-top:1px solid var(--line); color:var(--dim); font-size:11px; line-height:1.6; }
+  #stats code { color:var(--amber); font-size:10px; }
+
+  #side { width:190px; font-size:12px; }
+  #nav { position:absolute; right:14px; top:104px; z-index:30; display:flex; flex-direction:column; gap:8px; }
+  #nav button { width:42px; height:42px; border-radius:50%; border:1px solid var(--line); background:rgba(30,26,22,.93); color:var(--amber); font-size:20px; line-height:1; cursor:pointer; box-shadow:0 2px 12px rgba(0,0,0,.45); font-family:system-ui,sans-serif; }
+  #nav button:hover { border-color:var(--amber); }
+  #needle { display:inline-block; font-size:15px; }
+  #navCompass::after { content:"N"; display:block; font-size:8px; color:var(--dim); margin-top:-2px; font-family:system-ui,sans-serif; }
+
+  #live { font-size:11px; padding:8px 14px; color:var(--dim); }
+  #liveDot { color:#58c98a; margin-right:6px; }
+  #live.stale #liveDot { color:var(--amber); }
+  #liveText b { color:var(--ink); font-weight:normal; }
+  #side .lg { margin:5px 0; color:var(--dim); }
+  #side hr { border:none; border-top:1px solid var(--line); margin:9px 0; }
+  #side label { display:block; margin:6px 0; cursor:pointer; color:var(--dim); font-size:12px; }
+  #side input { accent-color:var(--amber); margin-right:6px; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; vertical-align:-1px; }
+
+  #receiptWrap { position:absolute; bottom:118px; right:14px; z-index:30; display:flex; flex-direction:column; align-items:flex-end; gap:6px; max-width:340px; }
+  #rcToggle { background:rgba(30,26,22,.93); border:1px solid var(--line); border-radius:8px; color:var(--amber); font:inherit; font-size:11px; padding:5px 11px; cursor:pointer; box-shadow:0 2px 12px rgba(0,0,0,.45); }
+  #rcToggle:hover { border-color:var(--amber); }
+  #receiptWrap.collapsed #receipt { display:none; }
+  #receipt { position:static; max-width:340px; max-height:42vh; overflow-y:auto; font-size:10.5px; color:var(--dim); line-height:1.6; }
+  #receipt code { color:var(--amber); }
+  #receipt .acc { margin-top:7px; padding-top:7px; border-top:1px solid var(--line); color:var(--gray); }
+
+  #info { bottom:118px; left:14px; max-width:340px; font-size:12px; display:none; z-index:30; }
+  #info h3 { margin:0 0 6px; font-size:15px; font-weight:normal; color:var(--amber); }
+  #info table { border-collapse:collapse; font-size:11px; color:var(--dim); }
+  #info td { padding:2px 10px 2px 0; }
+  #info td:first-child { color:var(--ink); }
+
+  #untracked { top:50%; left:14px; transform:translateY(-50%); max-width:330px; max-height:62vh; overflow:auto; display:none; font-size:11.5px; z-index:40; }
+  #untracked h3 { margin:0 0 8px; font-weight:normal; font-size:14px; color:var(--rust); }
+  #untracked li { margin:7px 0; color:var(--dim); line-height:1.5; }
+  #untracked b { color:var(--ink); font-weight:normal; }
+  #untracked p { color:var(--dim); }
+  #untracked p b { color:var(--ink); }
+
+  button.link { background:none; border:none; color:var(--rust); cursor:pointer; font:inherit; font-size:12px; padding:0; text-decoration:underline; }
+  #menuBtn { display:none; position:absolute; top:14px; right:14px; z-index:35; background:rgba(30,26,22,.93); border:1px solid var(--line); border-radius:8px; color:var(--amber); font-size:18px; padding:6px 12px; cursor:pointer; }
+
+  @media (max-width: 860px) {
+    #leftCol { max-width:74vw; gap:7px; top:10px; left:10px; }
+    #title { padding:9px 11px; }
+    #title h1 { font-size:15.5px; margin:0 0 2px; }
+    #title p { font-size:10.5px; line-height:1.42; margin:3px 0; }
+    #provToggle { display:inline-block; }
+    #title.provClosed #stats { display:none; }
+    #title h1 { cursor:pointer; }
+    #title h1::after { content:" ▾"; font-size:11px; color:var(--dim); }
+    #title.mini h1::after { content:" ▸"; }
+    #title.mini > *:not(h1) { display:none; }
+    #title.mini { padding:8px 12px; }
+    #leftCol.mini { max-width:none; }
+    #live { font-size:9.5px; padding:5px 9px; line-height:1.35; }
+    #stats { font-size:9.5px; line-height:1.5; margin-top:6px; padding-top:6px; }
+    #live { font-size:10px; padding:6px 10px; }
+    .cesium-credit-logoContainer img { max-height:18px !important; }
+    #menuBtn { display:block; top:auto; bottom:142px; right:10px; left:auto; }
+    #side { display:none; width:180px; }
+    #side.open { display:block; position:fixed; bottom:190px; right:10px; left:auto; width:190px; z-index:36; }
+    #nav { right:10px; }
+    #nav button { width:38px; height:38px; font-size:17px; }
+    #nav { top:92px; }
+    #receiptWrap { bottom:96px; right:10px; left:auto; max-width:80vw; }
+    #receipt { max-width:80vw; max-height:34vh; padding:8px 10px; font-size:9.5px; }
+    #receipt .acc { display:none; }
+    #info { bottom:96px; left:10px; max-width:64vw; }
+    #untracked { max-width:82vw; max-height:54vh; left:10px; }
+    .cesium-viewer-animationContainer { display:block !important; transform:scale(.62); transform-origin:bottom left; }
+    .cesium-viewer-timelineContainer { height:28px !important; }
+  }
+</style>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+
+<button id="menuBtn" title="Legend & toggles">☰</button>
+
+<div id="leftCol">
+<div id="title" class="panel">
+  <h1>Orbit <em>Sakshi</em> · साक्षी</h1>
+  <p>India's orbital sky — <b id="objCount">…</b> cataloged Indian-owned objects, rebuilt live from public TLE data. <b>Every position on this map has a witness you can rebuild.</b></p>
+  <p><button class="link" id="showUntracked">Why isn't Aditya-L1 here? →</button></p>
+  <button class="link" id="provToggle">provenance ▸</button>
+  <div id="stats">loading receipt chain…</div>
+</div>
+
+<div id="side" class="panel">
+  <div class="lg"><span class="dot" style="background:#f5a623"></span>Payload (<span id="nPay">…</span>)</div>
+  <div class="lg"><span class="dot" style="background:#8a94a6"></span>Rocket body (<span id="nRb">…</span>)</div>
+  <div class="lg"><span class="dot" style="background:#ff4d6d"></span>Debris (<span id="nDeb">…</span>)</div>
+  <div class="lg"><span class="dot" style="background:#3fd0c9"></span>BAS band 400–450 km</div>
+  <div class="lg" style="font-size:10px; line-height:1.45; margin-top:2px">Low-altitude (BAS band) positions degrade fastest — atmospheric drag brakes these objects hardest, so their TLEs stale quickest.</div>
+  <hr>
+  <label><input type="checkbox" id="tglLabels"> Labels (smart)</label>
+  <label><input type="checkbox" id="tglAll" checked> Label everything</label>
+  <label><input type="checkbox" id="tglBas"> BAS band only</label>
+</div>
+
+<div id="live" class="panel stale"><span id="liveDot">●</span><span id="liveText"><b>preview</b> · 25× time-lapse</span> <button class="link" id="syncLive">sync to live →</button><button class="link" id="previewBtn" style="display:none">▶ 25× time-lapse</button></div>
+</div>
+
+<div id="nav">
+  <button id="navCompass" title="Compass — click to reset view to north"><span id="needle">▲</span></button>
+  <button id="zoomIn" title="Zoom in">+</button>
+  <button id="zoomOut" title="Zoom out">−</button>
+</div>
+
+<div id="info" class="panel"></div>
+
+<div id="untracked" class="panel">
+  <h3>Not on this map — and why</h3>
+  <p id="untrackedBlurb">…</p>
+  <ul id="untrackedList"></ul>
+  <button class="link" id="hideUntracked">← back to the sky</button>
+</div>
+
+<div id="receiptWrap">
+  <button id="rcToggle" title="Show or hide the receipt chain">Receipt chain ▾</button>
+  <div id="receipt" class="panel">loading…</div>
+</div>
+<script>
+(function(){var w=document.getElementById('receiptWrap'),b=document.getElementById('rcToggle');
+if(window.innerWidth<=860){w.classList.add('collapsed');b.textContent='Receipt chain ▸';}
+b.addEventListener('click',function(){var c=w.classList.toggle('collapsed');b.textContent=c?'Receipt chain ▸':'Receipt chain ▾';});
+var t=document.getElementById('title'),p=document.getElementById('provToggle');
+if(window.innerWidth<=860){t.classList.add('provClosed');
+  var setMobileLabels=function(){try{
+    var all=document.getElementById('tglAll'),sm=document.getElementById('tglLabels');
+    if(all&&all.checked){all.checked=false;all.dispatchEvent(new Event('change',{bubbles:true}));}
+    if(sm&&!sm.checked){sm.checked=true;sm.dispatchEvent(new Event('change',{bubbles:true}));}
+  }catch(e){}};
+  setMobileLabels();
+  window.addEventListener('load',function(){setMobileLabels();setTimeout(setMobileLabels,900);});}
+p.addEventListener('click',function(e){e.stopPropagation();var c=t.classList.toggle('provClosed');p.textContent=c?'provenance ▸':'provenance ▾';});
+if(window.innerWidth<=860){t.classList.add('mini');}
+var h=t.querySelector('h1');
+h.addEventListener('click',function(){t.classList.toggle('mini');});})();
+</script>
+
+<script>window.CESIUM_BASE_URL="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/";</script>
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Cesium.js"></script>
+<script src="rebuild/satellite.min.js"></script>
+<script>
+/* ---------- palette (verified against HDR tonemapping before lock) ---------- */
+const PALETTE = {
+  payload:    "#f5a623",  // amber — hero
+  rocketBody: "#8a94a6",  // cool grey — recedes
+  debris:     "#ff4d6d",  // magenta-red — distinct from amber
+  basBand:    "#3fd0c9",  // teal
+  labelFill:  "#e8e6e0",  // warm off-white
+  labelEdge:  "#0a0a0f"   // near-black outline
+};
+
+/* Basemap: self-hosted Natural Earth II (public domain), vendored under tiles/.
+   Switched off CARTO dark_all 7 Aug 2026: CARTO's Oct–Nov 2025 terms restrict
+   hosted basemap tiles to Enterprise/grantees ("not available for free public
+   use") — keyless use is not compliant for a public launch. Self-hosting also
+   removes the last third-party runtime dependency (no quota, no kill switch).
+   Tiles are level 0–2 (globe context, not streets) and dark-styled in-shader. */
+function makeBaseLayer(){
+  return Cesium.TileMapServiceImageryProvider.fromUrl("tiles/NaturalEarthII")
+    .then(function(provider){
+      const layer = new Cesium.ImageryLayer(provider, {
+        credit: "Basemap: Natural Earth (public domain) — self-hosted"
+      });
+      layer.brightness = 0.34;   // dark-styled toward the slate palette
+      layer.saturation = 0.42;
+      layer.hue = -0.04;
+      return layer;
+    });
+}
+/* ion usage provably zero (verified 7 Aug 2026, pre-Publish gate):
+   token cleared + no ion APIs anywhere in this file + clean-load network audit
+   shows zero requests to api.cesium.com / assets.*.cesium.com / virtualearth.net.
+   The credit logo is a static CesiumJS build asset, not a metered ion request. */
+Cesium.Ion.defaultAccessToken = undefined;
+const viewer = new Cesium.Viewer("cesiumContainer", {
+  baseLayer: false,             // async self-hosted layer added below; until it
+                                // arrives the lifted baseColor reads as the planet
+  baseLayerPicker: false, geocoder: false,
+  terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+  homeButton: true, sceneModePicker: true, navigationHelpButton: false,
+  animation: true, timeline: true, fullscreenButton: false, infoBox: false,
+  selectionIndicator: false, shouldAnimate: true
+});
+window.__viewer = viewer;
+
+/* ---------- globe resilience ----------
+   1) baseColor lifted: a tileless globe must still read as a planet (navy #000080 was
+      indistinguishable from the background — this is what "no globe" looked like).
+   2) imagery watchdog, two triggers — a PRESENT layer with no usable tiles stops the
+      globe rendering entirely, so on sustained outage we drop to the bare slate planet:
+      a) error path: 3+ tile errors (404s, aborted requests);
+      b) hang path: no tile completes within 10s of (re)adding the layer — firewalled or
+         dead networks stall requests forever and never raise errorEvent (this is the
+         silent mode that regressed the globe). Backoff probe re-adds a fresh layer. */
+viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#1b2436");
+(function imageryWatchdog(v){
+  let failures = 0, retries = 0, bare = false;
+  function armErrors(){
+    const l = v.imageryLayers.get(0);
+    if (l) l.imageryProvider.errorEvent.addEventListener(onError);
+  }
+  function armHangProbe(){
+    let maxQ = 0, done = false;
+    const off = v.scene.globe.tileLoadProgressEvent.addEventListener(function(q){
+      if (q > maxQ) maxQ = q;
+      if (maxQ > 0 && q < maxQ) done = true;   // a tile finished loading
+    });
+    setTimeout(function(){
+      off();
+      if (!done && v.imageryLayers.length > 0 && !bare) goBare();
+    }, 10000);
+  }
+  function onError(){
+    if (bare) return;
+    if (++failures < 3) return;                // tolerate isolated tile 404s
+    goBare();
+  }
+  function goBare(){
+    if (bare) return;
+    bare = true; failures = 0; retries++;
+    v.imageryLayers.removeAll(true);           // slate planet stays visible during the outage
+    setTimeout(function(){
+      makeBaseLayer().then(function(layer){    // probe recovery with a fresh layer
+        if (v.imageryLayers.length === 0) v.imageryLayers.add(layer);
+        bare = false; armErrors(); armHangProbe();
+      }).catch(function(){ bare = false; goBare(); });  // provider itself failed: retry with backoff
+    }, Math.min(8000 * retries, 60000));
+  }
+  // first layer: async self-hosted TMS; slate planet covers the brief load window
+  makeBaseLayer().then(function(layer){
+    v.imageryLayers.add(layer);
+    armErrors(); armHangProbe();
+  }).catch(function(e){ console.warn("base layer failed to load; bare planet", e); });
+})(viewer);
+
+/* ---------- scene styling ("space-station window"), perf-guarded ---------- */
+(function styleScene(v){
+  const scene = v.scene;
+  // high-DPI, capped — mobile smoothness is load-bearing
+  v.resolutionScale = Math.min(window.devicePixelRatio || 1, 1.25);
+  scene.postProcessStages.fxaa.enabled = true;
+  // HDR held OFF: verified 7 Aug 2026 — PBR_NEUTRAL tonemapping washes CartoDB dark tiles
+  // to unreadable pearl (variant matrix A/B/C/D, hdr_off won). Guard left in place:
+  // if (scene.highDynamicRangeSupported) scene.highDynamicRange = true;  // needs exposure tuning first
+  // atmosphere glow
+  if (scene.skyAtmosphere) {
+    scene.skyAtmosphere.show = true;
+    scene.skyAtmosphere.brightnessShift = 0.2;
+    scene.skyAtmosphere.hueShift = -0.02;
+  }
+  scene.globe.showGroundAtmosphere = true;
+  scene.globe.atmosphereLightIntensity = 8.0;
+  scene.globe.enableLighting = true;                 // visible day/night terminator
+  scene.globe.dynamicAtmosphereLighting = true;
+  scene.globe.atmosphereBrightnessShift = -0.15;
+  scene.globe.atmosphereSaturationShift = -0.25;
+  if (scene.skyBox) scene.skyBox.show = true;
+  if (scene.sun) scene.sun.show = true;
+  if (scene.moon) scene.moon.show = true;
+  // restrained bloom — payload dots glow like lights on the dark side
+  const bloom = scene.postProcessStages.bloom;
+  bloom.enabled = true;
+  bloom.uniforms.glowOnly = false;
+  bloom.uniforms.contrast = 128;
+  bloom.uniforms.brightness = -0.3;
+  bloom.uniforms.delta = 1.0;
+  bloom.uniforms.sigma = 2.0;
+  bloom.uniforms.stepSize = 1.0;
+  // NO requestRenderMode here — the sky is time-driven and must render continuously
+})(viewer);
+
+viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#0d0b09");
+// Clock doctrine: LIVE = 1x, baselined to real UTC now, never ahead.
+// multiplier >1 exists ONLY as an explicitly labeled fast-forward preview.
+viewer.clock.currentTime = Cesium.JulianDate.now();
+viewer.clock.multiplier = 25;   // default view = labeled time-lapse preview (see staleness chip)
+
+/* ---------- Home button: fly to India, not 0,0 ---------- */
+const INDIA_VIEW = Cesium.Cartesian3.fromDegrees(78.0, 22.0, 2.6e7);
+viewer.homeButton.viewModel.command.beforeExecute.addEventListener(function(e){
+  e.cancel = true;
+  viewer.camera.flyTo({ destination: INDIA_VIEW, duration: 2.0 });
+});
+
+/* ---------- staleness indicator: displayed clock vs real now ----------
+   LIVE state (1x) sits at-or-behind real UTC now, forever.
+   PREVIEW state (25x) is a labeled fast-forward — never presented as live. */
+(function staleness(v){
+  const chip = document.getElementById("live"),
+        txt  = document.getElementById("liveText"),
+        syncBtn = document.getElementById("syncLive"),
+        prevBtn = document.getElementById("previewBtn");
+  let preview = true;   // ship state: labeled 25x time-lapse preview
+  function fmt(a){ // a = abs seconds
+    const h = Math.floor(a/3600), m = Math.floor(a%3600/60), s = Math.floor(a%60);
+    return (h? h+"h ":"") + ((m||h)? m+"m ":"") + s + "s";
+  }
+  setInterval(()=>{
+    const delta = Cesium.JulianDate.secondsDifference(Cesium.JulianDate.now(), v.clock.currentTime);
+    const a = Math.abs(delta);
+    if (preview){
+      chip.classList.add("stale");
+      txt.innerHTML = delta < 0
+        ? "<b>preview: +" + fmt(a) + " ahead</b> · 25× time-lapse — not the live sky"
+        : "<b>preview: −" + fmt(a) + " behind live</b> · 25× time-lapse — not the live sky";
+      syncBtn.style.display = "inline"; prevBtn.style.display = "none";
+    } else if (!v.clock.shouldAnimate){
+      chip.classList.add("stale");
+      txt.innerHTML = "<b>+" + fmt(a) + " stale</b> — paused, showing the past sky";
+      syncBtn.style.display = "inline"; prevBtn.style.display = "inline";
+    } else if (a < 6){
+      chip.classList.remove("stale");
+      txt.innerHTML = "<b>LIVE</b> · real-time sky (±" + fmt(a) + ")";
+      syncBtn.style.display = "none"; prevBtn.style.display = "inline";
+    } else {
+      chip.classList.add("stale");
+      txt.innerHTML = delta > 0
+        ? "<b>+" + fmt(a) + " stale</b> — showing the past sky"
+        : "<b>−" + fmt(a) + " ahead</b> — scrubbed into a future sky · not live";
+      syncBtn.style.display = "inline"; prevBtn.style.display = "inline";
+    }
+  }, 1000);
+  syncBtn.onclick = ()=>{           // snap to actual UTC now, true 1x live
+    preview = false;
+    v.clock.currentTime = Cesium.JulianDate.now();
+    v.clock.multiplier = 1;
+    v.clock.shouldAnimate = true;
+  };
+  prevBtn.onclick = ()=>{           // re-enter preview, re-baselined to now
+    preview = true;
+    v.clock.currentTime = Cesium.JulianDate.now();
+    v.clock.multiplier = 25;
+    v.clock.shouldAnimate = true;
+  };
+})(viewer);
+
+/* ---------- Google-Earth-style nav: compass + zoom in/out ---------- */
+(function navControls(v){
+  const cam = () => v.scene.camera;
+  const height = () => Cesium.Cartographic.fromCartesian(cam().position).height;
+  document.getElementById("zoomIn").onclick  = ()=> cam().zoomIn (Math.max(height()*0.35, 5e4));
+  document.getElementById("zoomOut").onclick = ()=> cam().zoomOut(Math.max(height()*0.55, 7e4));
+  const needle = document.getElementById("needle");
+  v.scene.postRender.addEventListener(()=>{ needle.style.transform = "rotate(" + (-cam().heading) + "rad)"; });
+  document.getElementById("navCompass").onclick = ()=>{
+    const c = cam();
+    c.setView({ destination: c.position.clone(),
+      orientation: { heading: 0.0, pitch: c.pitch, roll: 0.0 } });
+  };
+})(viewer);
+
+/* ---------- class styles: colors new, label distances tiered (unchanged) ---------- */
+const TYPE_STYLE = {
+  "PAY": { color: Cesium.Color.fromCssColorString(PALETTE.payload),    size: 6, label: "Payload",    labelFar: 3.0e7 },
+  "R/B": { color: Cesium.Color.fromCssColorString(PALETTE.rocketBody), size: 5, label: "Rocket body", labelFar: 7.0e6 },
+  "DEB": { color: Cesium.Color.fromCssColorString(PALETTE.debris),     size: 4, label: "Debris",     labelFar: 4.0e6 }
+};
+const BAS_COLOR = Cesium.Color.fromCssColorString(PALETTE.basBand);
+const LABEL_FONT = '13px "Inter", "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif';
+
+let entities = [], basOnly = false, smartLabels = false, allLabels = true, selected = null;
+
+/* ---------- label deconfliction (smart mode): if two labels share pixels, one hides ---------- */
+const LABEL_PRIO = { "PAY": 0, "R/B": 1, "DEB": 2 };
+let _declutterLast = 0;
+viewer.scene.postRender.addEventListener(()=>{
+  if (!smartLabels || allLabels) return;          // labels-off or firehose: policy owns the show flags
+  const t = performance.now();
+  if (t - _declutterLast < 120) return;           // throttled
+  _declutterLast = t;
+  const scene = viewer.scene, camPos = scene.camera.position;
+  const R = 6371000.0;
+  const cMag = Cesium.Cartesian3.magnitude(camPos);
+  const horizonC = Math.acos(Math.min(R/cMag, 1));
+  const cands = [];
+  for (const en of entities){
+    if (en === selected) continue;                // a clicked object's label stays pinned
+    const pos = en.position.getValue(viewer.clock.currentTime);
+    if (!pos){ en.label.show = false; continue; }
+    const st = TYPE_STYLE[en._meta.type];
+    const d = Cesium.Cartesian3.distance(camPos, pos);
+    if (d > st.labelFar){ en.label.show = false; continue; }
+    const pMag = Cesium.Cartesian3.magnitude(pos);
+    const ang = Cesium.Cartesian3.angleBetween(camPos, pos);
+    if (ang > horizonC + Math.acos(Math.min(R/pMag, 1))){ en.label.show = false; continue; }  // behind limb
+    const cc = scene.cartesianToCanvasCoordinates(pos);
+    if (!cc){ en.label.show = false; continue; }
+    // mirror of scaleByDistance (1.5e5->1.0 ... labelFar->0.55) for rect size
+    const s = Math.max(0.55, Math.min(1.0, 1.0 - 0.45*(d - 1.5e5)/(st.labelFar - 1.5e5)));
+    const w = en._meta.name.length*7.2*s + 16, h = 15*s + 4;
+    cands.push({ en, x: cc.x + 9 + w/2, y: cc.y, d, w, h });   // labels anchor LEFT + 9px offset
+  }
+  cands.sort((a,b)=> (LABEL_PRIO[a.en._meta.type] - LABEL_PRIO[b.en._meta.type]) || (a.d - b.d));
+  const placed = [];
+  for (const c of cands){
+    let hit = false;
+    for (const p of placed){
+      if (Math.abs(c.x - p.x) < (c.w + p.w)/2 && Math.abs(c.y - p.y) < (c.h + p.h)/2){ hit = true; break; }
+    }
+    if (hit){ c.en.label.show = false; } else { placed.push(c); c.en.label.show = true; }
+  }
+});
+
+function inBas(o){ return o.apogee_km!=null && o.perigee_km!=null && o.apogee_km>=400 && o.perigee_km<=450; }
+
+/* fade/scale machinery, tiered per class: fully opaque to 80% of far, gone at far */
+function applyLabelPolicy(){
+  entities.forEach(en=>{
+    const st = TYPE_STYLE[en._meta.type];
+    if(allLabels){
+      en.label.distanceDisplayCondition = undefined;
+      en.label.translucencyByDistance = undefined;
+      en.label.show = true;
+    } else if(smartLabels){
+      en.label.distanceDisplayCondition = new Cesium.DistanceDisplayCondition(0, st.labelFar);
+      en.label.translucencyByDistance = new Cesium.NearFarScalar(st.labelFar*0.8, 1.0, st.labelFar, 0.0);
+      en.label.show = true;
+    } else {
+      en.label.show = false;
+    }
+  });
+}
+
+fetch("data/india_objects.json").then(r=>r.json()).then(snap=>{
+  document.getElementById("objCount").textContent = snap.coverage.with_verifiable_tle;
+  document.getElementById("stats").innerHTML =
+    `snapshot ${snap.generated_utc}<br>coverage: ${snap.coverage.with_verifiable_tle}/${snap.coverage.on_orbit_indian_objects} on-orbit Indian-owned objects` +
+    `<br>source: CelesTrak GP — public data produced by 18th Space Defense Squadron / USSPACECOM · SGP4 propagation` +
+    `<br>basemap: Natural Earth (public domain), self-hosted — no third-party tile service`;
+
+  // counts are computed from the snapshot, never hardcoded — the lock-arithmetic rule
+  const counts = {PAY:0, "R/B":0, DEB:0};
+  snap.objects.forEach(o=>{ if (counts[o.type] !== undefined) counts[o.type]++; });
+  document.getElementById("nPay").textContent = counts.PAY;
+  document.getElementById("nRb").textContent  = counts["R/B"];
+  document.getElementById("nDeb").textContent = counts.DEB;
+  const deep = snap.untracked.filter(u=>/Chandrayaan|MOM|Aditya/i.test(u.name)).length;
+  document.getElementById("untrackedBlurb").innerHTML =
+    `${snap.untracked.length} of ${snap.coverage.on_orbit_indian_objects} on-orbit Indian-owned catalog entries have no publicly verifiable orbit data. ` +
+    `${deep} are India's deep-space flagships. India publishes no public ephemeris for them — the proof layer doesn't exist yet. <b>That gap is why Velotrax exists.</b>`;
+
+  snap.objects.forEach(o=>{
+    let satrec;
+    try { satrec = satellite.twoline2satrec(o.l1, o.l2); } catch(e){ return; }
+    const style = TYPE_STYLE[o.type] || TYPE_STYLE["DEB"];
+    const bas = inBas(o);
+    const ent = viewer.entities.add({
+      id: "o"+o.norad,
+      position: new Cesium.CallbackProperty(t=>{
+        const pv = satellite.propagate(satrec, Cesium.JulianDate.toDate(t));
+        if(!pv || !pv.position) return undefined;
+        const gmst = satellite.gstime(Cesium.JulianDate.toDate(t));
+        const geo = satellite.eciToGeodetic(pv.position, gmst);
+        return Cesium.Cartesian3.fromRadians(geo.longitude, geo.latitude, geo.height*1000);
+      }, false),
+      point: new Cesium.PointGraphics({
+        pixelSize: style.size, color: bas ? BAS_COLOR : style.color,
+        outlineColor: Cesium.Color.fromCssColorString("#0d0b09"), outlineWidth: 1,
+        scaleByDistance: new Cesium.NearFarScalar(2.0e6, 1.6, 6.0e7, 0.55),
+        // points: far-side sats stay visible through the limb
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      }),
+      label: new Cesium.LabelGraphics({
+        text: o.name, font: LABEL_FONT,
+        fillColor: Cesium.Color.fromCssColorString(PALETTE.labelFill),
+        outlineColor: Cesium.Color.fromCssColorString(PALETTE.labelEdge),
+        outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(9, 0),
+        horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+        verticalOrigin: Cesium.VerticalOrigin.CENTER,
+        // labels: FINITE depth test — far-side names occlude behind the limb
+        disableDepthTestDistance: 0.0,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, style.labelFar),
+        translucencyByDistance: new Cesium.NearFarScalar(style.labelFar*0.8, 1.0, style.labelFar, 0.0),
+        scaleByDistance: new Cesium.NearFarScalar(1.5e5, 1.0, style.labelFar, 0.55),
+        show: true
+      }),
+      _meta: o, _bas: bas, _satrec: satrec
+    });
+    entities.push(ent);
+  });
+  applyLabelPolicy();   // match initial checkbox state ("Label everything" default)
+
+  document.getElementById("receipt").innerHTML =
+    `<b style="color:var(--ink)">Receipt chain</b> · genesis + 6 receipts, verified<br>` +
+    `snapshot sha256 <code>212afa67…</code> · AAGAMAN A/B/C now tracked via OMM (Alpha-5)<br>` +
+    `<code>#0000 1f054806…</code> genesis → <code>#0001 81ce44b1…</code> snapshot → <code>#0002 c5e6b29d…</code> correction → <code>#0003 2ec4d118…</code> rebuild kit → <code>#0004 75f7343f…</code> correction → <code>#0005 65e83ad0…</code> known-gap declared → <code>#0006 1f208b42…</code> gap closed, same day<br>` +
+    `<a href="rebuild/REBUILD.md" target="_blank" rel="noopener">Rebuild any archived day yourself</a> — ` +
+    `<a href="rebuild/rebuild.mjs" target="_blank" rel="noopener">checker script</a>, zero-install, hash-pinned propagator.<br>` +
+    `Daily fetch begins when the archive repo goes live — every fetched day hashed and chained, any archived day rebuildable byte-for-byte. ` +
+    `A missed day is written into the chain as a MISSING record with its reason — named, dated, hashed. Never a silent gap.` +
+    `<div class="acc">Positions: public TLEs via SGP4 — ~1 km median error at 6 h staleness, degrading with age. TLEs are mean elements — not for conjunction assessment or operational use. Catalog truth, not sensor truth. We verify the record, not the sky.</div>`;
+
+  const ul = document.getElementById("untrackedList");
+  snap.untracked.forEach(u=>{
+    const li = document.createElement("li");
+    li.innerHTML = `<b>${u.name}</b> (${u.type}, NORAD ${u.norad})<br>${u.reason}`;
+    ul.appendChild(li);
+  });
+
+  const infoBox = document.getElementById("info");
+  viewer.screenSpaceEventHandler.setInputAction(ev=>{
+    const picked = viewer.scene.pick(ev.position);
+    if(selected){ selected = null; applyLabelPolicy(); }   // restore class policy on deselect
+    if(picked && picked.id && picked.id._meta){
+      selected = picked.id;
+      selected.label.distanceDisplayCondition = undefined;
+      selected.label.translucencyByDistance = undefined;
+      selected.label.show = true;
+      const o = picked.id._meta;
+      infoBox.style.display = "block";
+      infoBox.innerHTML = `<h3>${o.name}</h3><table>` +
+        `<tr><td>NORAD</td><td>${o.norad}</td></tr>` +
+        `<tr><td>Type</td><td>${TYPE_STYLE[o.type].label}${inBas(o)?" · BAS band":""}</td></tr>` +
+        `<tr><td>Int'l designator</td><td>${o.l1.slice(9,17).trim()}</td></tr>` +
+        `<tr><td>Launch</td><td>${o.launch||"—"}</td></tr>` +
+        `<tr><td>Orbit</td><td>${o.perigee_km??"—"} × ${o.apogee_km??"—"} km · ${o.inc_deg??"—"}°</td></tr>` +
+        `<tr><td>Period</td><td>${o.period_min?o.period_min.toFixed(1)+" min":"—"}</td></tr></table>`;
+    } else infoBox.style.display = "none";
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+  document.getElementById("tglLabels").addEventListener("change", e=>{
+    smartLabels = e.target.checked;
+    if(smartLabels){ allLabels = false; document.getElementById("tglAll").checked = false; }
+    applyLabelPolicy();
+  });
+  document.getElementById("tglAll").addEventListener("change", e=>{
+    allLabels = e.target.checked;
+    if(allLabels){ smartLabels = false; document.getElementById("tglLabels").checked = false; }
+    applyLabelPolicy();
+  });
+  document.getElementById("tglBas").addEventListener("change", e=>{
+    basOnly = e.target.checked;
+    entities.forEach(en=>{ en.show = !basOnly || en._bas; });
+  });
+  document.getElementById("showUntracked").onclick = ()=> document.getElementById("untracked").style.display="block";
+  document.getElementById("hideUntracked").onclick = ()=> document.getElementById("untracked").style.display="none";
+  document.getElementById("menuBtn").onclick = ()=> document.getElementById("side").classList.toggle("open");
+
+  viewer.camera.flyTo({ destination: INDIA_VIEW, duration: 2.5 });
+}).catch(e=>{
+  document.getElementById("stats").textContent = "failed to load snapshot: "+e;
+});
+</script>
+</body>
+</html>
