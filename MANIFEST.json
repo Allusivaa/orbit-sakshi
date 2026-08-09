@@ -2,8 +2,9 @@
   "package": "orbit-sakshi-v1.0.3",
   "generated_utc": "2026-08-08T00:00:00Z",
   "algorithm": "sha256",
-  "file_count": 67,
+  "file_count": 68,
   "files": {
+    ".gitattributes": "b03d73aefe6202ff8f2a2b20e1021b9af8c3ab9e8962d3562e0dee2f5a5d445a",
     "README.md": "0d02f318811d46aa32f8724dc97be2154102b6cfcde1d730cc7f5bdf3b626d28",
     "RELEASE_v1.0.2.md": "653f6a8867a9f79be81295af7c7ddd45e14ccc254c5182ff41dfe62adf56a795",
     "archive/README.md": "77b03aacd350c7da2086f3fb860eaf0877c74ee8b4d4e0277923ead9acbb9c12",

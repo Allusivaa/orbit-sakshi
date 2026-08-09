@@ -1,0 +1,13 @@
+# Orbit Sakshi is an evidence repository. The bytes ARE the product.
+#
+# Git's end-of-line normalisation rewrites CRLF to LF on commit. For source
+# code that is a convenience; here it is corruption — the receipt chain
+# commits to the exact bytes as pulled from CelesTrak, and a rewritten byte
+# breaks the hash. On 2026-08-09 this silently mutated six evidence files in
+# transport: a fresh `git clone` verified as FAIL ("Do not trust this copy")
+# while the identical tree on the live site verified PASS.
+#
+# `-text` disables all EOL conversion. Nothing in this repository is ever
+# normalised on commit or checkout. Recorded on-chain.
+
+* -text
