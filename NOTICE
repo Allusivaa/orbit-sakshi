@@ -1,0 +1,71 @@
+Orbit Sakshi — third-party components and data provenance
+=========================================================
+
+The MIT licence in LICENSE covers software and documentation authored by
+Velotrax. Everything below came from somewhere else and is listed here with
+its origin and its terms. Where terms are uncertain, that is stated rather
+than assumed.
+
+
+REDISTRIBUTED IN THIS REPOSITORY
+--------------------------------
+
+satellite.js 4.1.4  —  rebuild/satellite.min.js, archive/rebuild/satellite.min.js
+    Copyright (c) 2013 Shashwat Kandadai and UCSC
+    MIT License · https://github.com/shashwatak/satellite-js
+    Vendored and sha256-pinned (d8a9d17a8a61c8a9237cbd476baa1e31fda3c77aeb4bb014cfebded766af7043)
+    so the map and the verifier provably execute the same propagator.
+    The upstream licence header is retained verbatim inside the minified file.
+
+Natural Earth II raster tiles  —  tiles/NaturalEarthII/
+    Natural Earth raster and vector map data is in the public domain; no
+    permission is needed to use it. Attribution is given here as a courtesy
+    requested by the project. https://www.naturalearthdata.com/about/terms-of-use/
+
+CelesTrak GP data  —  archive/pipeline/*.tle, archive/pipeline/satcat_raw.csv,
+                      archive/pipeline/omm_*.json, data/india_objects.json
+    General Perturbations element sets and the satellite catalogue are
+    produced by the 18th Space Defense Squadron, United States Space Force
+    (USSPACECOM), and distributed publicly via CelesTrak (https://celestrak.org).
+    The underlying element sets are a work of the United States Government.
+    These files are redistributed here unmodified because the receipt chain
+    commits to the exact bytes as fetched; a verifier cannot check a claim
+    against data it does not have.
+    Users intending commercial redistribution should consult CelesTrak's
+    current terms of use directly rather than relying on this notice.
+
+    Accuracy statement, restated from the source: TLE and OMM data are mean
+    elements. They are NOT suitable for conjunction assessment or operational
+    collision avoidance.
+
+
+LOADED AT RUNTIME, NOT REDISTRIBUTED
+------------------------------------
+
+CesiumJS 1.118  —  loaded from cesium.com
+    Apache License 2.0 · https://github.com/CesiumGS/cesium
+    Not included in this repository. The page will not render a globe without
+    network access to that origin; the verifier does not require it.
+
+Inter and Space Grotesk  —  loaded from fonts.googleapis.com
+    SIL Open Font License 1.1. Not included in this repository.
+
+
+TIMESTAMPING
+------------
+
+OpenTimestamps  —  https://opentimestamps.org
+    Release packages carry .ots receipts committing their sha256 into the
+    Bitcoin blockchain via public calendar servers (alice.btc, bob.btc,
+    finney.eternitywall). The receipts are published as release assets so the
+    timestamps can be verified without trusting Velotrax.
+
+
+HONEST SCOPE OF THIS NOTICE
+---------------------------
+
+This file records what is known about provenance and terms at the time of
+writing. It is not legal advice and it is not a warranty that every
+downstream use is permitted. If a component is listed incorrectly, or an
+attribution is missing, open an issue — corrections are published on the
+receipt chain like everything else.
