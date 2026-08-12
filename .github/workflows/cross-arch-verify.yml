@@ -1,0 +1,109 @@
+name: cross-arch verify
+
+# Orbit Sakshi claims a stranger can re-derive the sky and get the same bits.
+# This workflow tests that claim on two processor architectures, on machines
+# nobody at Velotrax controls, and fails loudly if the hash moves by one bit.
+#
+# It also regression-tests the defect recorded in receipt #0013: git once
+# normalised CRLF in six evidence files, so a fresh clone failed its own
+# verifier. This job clones fresh every run. If that ever recurs, this goes red.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 2 * * *'   # 07:45 IST daily
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: ${{ matrix.arch }} · node ${{ matrix.node }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+            node: 20
+          - runner: ubuntu-24.04
+            arch: x86_64
+            node: 22
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+            node: 20
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+            node: 22
+
+    env:
+      EXPECTED_SKY: c8ccfc2f6a6ed4768778c8c1a6dda6cf76edf63dc5100376bb902df088022e1f
+
+    steps:
+      - name: Checkout (fresh clone, no build step, no npm install)
+        uses: actions/checkout@v4
+
+      - name: Use Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Record the machine
+        run: |
+          echo "arch      : $(uname -m)"
+          echo "kernel    : $(uname -sr)"
+          echo "node      : $(node --version)"
+          echo "libc      : $(ldd --version 2>&1 | head -1)"
+
+      - name: Evidence bytes survived transport (receipt #0013 regression)
+        run: |
+          cd archive
+          fail=0
+          check() {
+            got=$(sha256sum "$1" | cut -d' ' -f1)
+            if [ "$got" != "$2" ]; then
+              echo "::error::$1 sha256 $got != expected $2"
+              fail=1
+            else
+              echo "ok  $1  $got"
+            fi
+          }
+          check pipeline/grp_active.tle   d49ffdbbbbe095921b6ec319f59b4832e90177be9f1191f871efd7d0d2e053a5
+          check pipeline/satcat_raw.csv   a14a6db4440f6a0a756f65b6a8f103c125b67372168164721b33314cc77ee58c
+          check pipeline/name_gslv.tle    ab9686e8f152fc592d3e792625bfcd6682e00d11812c88d4041ee1d707db82df
+          check pipeline/name_pslv.tle    2cff43ce73b1dc389c62fb28ffed427664fb11384ecad903194e790a128f4337
+          check pipeline/name_missing.tle a9fc3434e602ad2dff494dd7ebd62869fae7c58dd6dea66017eb2139644ce08a
+          check rebuild/satellite.min.js  d8a9d17a8a61c8a9237cbd476baa1e31fda3c77aeb4bb014cfebded766af7043
+          exit $fail
+
+      - name: Run the rebuild kit
+        run: |
+          cd archive
+          set -o pipefail
+          node rebuild/rebuild.mjs | tee ../kit-output.txt
+
+      - name: Assert the sky hash is bit-identical
+        run: |
+          SKY=$(grep -oE 'sky sha256: [0-9a-f]{64}' kit-output.txt | grep -oE '[0-9a-f]{64}' | head -1)
+          echo "arch     : $(uname -m)"
+          echo "measured : ${SKY:-<none found>}"
+          echo "expected : $EXPECTED_SKY"
+          if [ -z "$SKY" ]; then
+            echo "::error::no sky hash found in kit output"; exit 1
+          fi
+          if [ "$SKY" != "$EXPECTED_SKY" ]; then
+            echo "::error::sky hash differs on $(uname -m) — determinism claim is broken"
+            exit 1
+          fi
+          echo "PASS — $(uname -m) reproduces the witnessed sky hash exactly"
+
+      - name: Upload kit output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kit-output-${{ matrix.arch }}-node${{ matrix.node }}
+          path: kit-output.txt
